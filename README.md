@@ -12,6 +12,8 @@ HeadlineAnchor watches major news sources for headline changes and creates a per
 
 Every version of every headline gets its own on-chain anchor. The full text stays in a local database — only the hash goes on-chain, keeping costs minimal.
 
+![HeadlineAnchor Changes View](docs/screenshot.png)
+
 ## Built With `@bsv/simple`
 
 All blockchain interactions go through [`@bsv/simple`](https://github.com/bsv-blockchain/simple) — a TypeScript SDK that handles wallet management, key derivation, and transaction construction with a clean, high-level API.
