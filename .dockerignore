@@ -1,0 +1,9 @@
+node_modules
+dist
+dist-server
+.env
+.server-wallet.json
+.git
+.github
+.claude
+.idea

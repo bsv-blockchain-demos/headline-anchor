@@ -16,5 +16,17 @@ services:
       timeout: 5s
       retries: 5
 
+  app:
+    image: ghcr.io/bsv-blockchain-demos/headline-anchor:latest
+    profiles: [deploy]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://headline:headline@postgres:5432/headline_anchor
+    ports:
+      - "3000:3000"
+
 volumes:
   pgdata:
