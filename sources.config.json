@@ -1,3 +1,7 @@
 [
-  { "name": "BBC News", "feedUrl": "https://feeds.bbci.co.uk/news/rss.xml", "pollInterval": 120 }
+  { "name": "White House", "feedUrl": "https://www.whitehouse.gov/news/feed/", "pollInterval": 120 },
+  { "name": "BBC News", "feedUrl": "https://feeds.bbci.co.uk/news/rss.xml", "pollInterval": 120 },
+  { "name": "AP News", "feedUrl": "https://feedx.net/rss/ap.xml", "pollInterval": 120 },
+  { "name": "NY Times", "feedUrl": "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "pollInterval": 180 },
+  { "name": "Al Jazeera", "feedUrl": "https://www.aljazeera.com/xml/rss/all.xml", "pollInterval": 180 }
 ]

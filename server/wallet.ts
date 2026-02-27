@@ -78,11 +78,19 @@ export async function receiveFunding(payload: {
 export async function getBalanceSatoshis(): Promise<number> {
   const w = await getWallet()
   const client = w.getClient()
-  const result = await client.listOutputs({ basket: 'default' })
-  const outputs = result?.outputs ?? []
-  return outputs
-    .filter((o: any) => o.spendable !== false)
-    .reduce((sum: number, o: any) => sum + (o.satoshis ?? 0), 0)
+  let total = 0
+  let offset = 0
+  const pageSize = 100
+  while (true) {
+    const result = await client.listOutputs({ basket: 'default', limit: pageSize, offset })
+    const outputs = result?.outputs ?? []
+    total += outputs
+      .filter((o: any) => o.spendable !== false)
+      .reduce((sum: number, o: any) => sum + (o.satoshis ?? 0), 0)
+    if (outputs.length < pageSize) break
+    offset += pageSize
+  }
+  return total
 }
 
 let lastKnownBalance = 0

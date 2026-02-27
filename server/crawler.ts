@@ -5,7 +5,8 @@ import type { Source } from './db.js'
 const parser = new Parser({
   timeout: 15000,
   headers: {
-    'User-Agent': 'HeadlineAnchor/1.0',
+    'User-Agent': 'Mozilla/5.0 (compatible; HeadlineAnchor/1.0; +https://github.com/bsv-blockchain-demos)',
+    'Accept': 'application/rss+xml, application/xml, text/xml, */*',
   },
 })
 
@@ -39,7 +40,8 @@ function extractHeadlines(feed: Parser.Output<Parser.Item>): RawHeadline[] {
     const url = (item.link ?? item.guid ?? '').trim()
     if (!title || !url) continue
 
-    const description = (item.contentSnippet ?? item.content ?? item.summary ?? '').trim() || null
+    const raw = (item.contentSnippet ?? item.content ?? item.summary ?? '').trim()
+    const description = raw ? (raw.length > 1024 ? raw.slice(0, 1024) : raw) : null
     const contentHash = computeHash(title, description)
 
     headlines.push({ title, description, url, contentHash })

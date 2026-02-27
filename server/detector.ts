@@ -1,7 +1,7 @@
 import type { Source } from './db.js'
 import type { RawHeadline } from './crawler.js'
 import { getHeadlineByUrl, insertHeadline, updateHeadline, insertChange } from './db.js'
-import { anchorHeadline, anchorChange } from './anchor.js'
+import { anchorHash } from './anchor.js'
 
 export async function processHeadlines(source: Source, headlines: RawHeadline[]) {
   let newCount = 0
@@ -11,10 +11,7 @@ export async function processHeadlines(source: Source, headlines: RawHeadline[])
     const existing = await getHeadlineByUrl(raw.url)
 
     if (!existing) {
-      // New headline — anchor hash only
-      const txid = await anchorHeadline({
-        contentHash: raw.contentHash,
-      })
+      const txid = await anchorHash(raw.contentHash)
 
       await insertHeadline(
         source.id, raw.title, raw.description, raw.url,
@@ -22,33 +19,19 @@ export async function processHeadlines(source: Source, headlines: RawHeadline[])
       )
       newCount++
     } else if (existing.content_hash !== raw.contentHash) {
-      // Content changed — anchor prev/curr hashes only
-      let changeTxid: string | null = null
-
-      if (existing.txid) {
-        changeTxid = await anchorChange({
-          ref: existing.txid,
-          prevHash: existing.content_hash,
-          currHash: raw.contentHash,
-        })
-      }
+      // Content changed — anchor the new hash
+      const newTxid = await anchorHash(raw.contentHash)
 
       await insertChange(
         existing.id, existing.title, raw.title,
         existing.description, raw.description,
         existing.content_hash, raw.contentHash,
-        changeTxid, new Date().toISOString()
+        newTxid, new Date().toISOString()
       )
-
-      // Re-anchor the updated hash
-      const newTxid = await anchorHeadline({
-        contentHash: raw.contentHash,
-      })
 
       await updateHeadline(existing.id, raw.title, raw.description, raw.contentHash, newTxid)
       changedCount++
     }
-    // If hash matches, skip (no change)
   }
 
   if (newCount > 0 || changedCount > 0) {

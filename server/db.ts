@@ -254,6 +254,31 @@ export async function getChangeById(id: number) {
   return rows[0] as (HeadlineChange & { url: string; original_txid: string | null; source_name: string }) | undefined
 }
 
+// --- Retry helpers ---
+
+export async function getUnanchoredHeadlines(): Promise<Headline[]> {
+  const { rows } = await pool.query('SELECT * FROM headlines WHERE txid IS NULL ORDER BY id')
+  return rows as Headline[]
+}
+
+export async function setHeadlineTxid(id: number, txid: string, contentHash: string) {
+  await pool.query('UPDATE headlines SET txid = $1 WHERE id = $2', [txid, id])
+  // Also backfill any change record that produced this hash
+  await pool.query(
+    'UPDATE headline_changes SET change_txid = $1 WHERE headline_id = $2 AND new_hash = $3 AND change_txid IS NULL',
+    [txid, id, contentHash]
+  )
+}
+
+export async function getUnanchoredChanges(): Promise<HeadlineChange[]> {
+  const { rows } = await pool.query('SELECT * FROM headline_changes WHERE change_txid IS NULL ORDER BY id')
+  return rows as HeadlineChange[]
+}
+
+export async function setChangeTxid(id: number, txid: string) {
+  await pool.query('UPDATE headline_changes SET change_txid = $1 WHERE id = $2', [txid, id])
+}
+
 // --- Stats ---
 
 export async function getStats() {
