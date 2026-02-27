@@ -22,6 +22,10 @@ HeadlineAnchor uses:
 - **`inscribeFileHash()`** — Anchors SHA-256 hashes on-chain in a single call. No manual transaction building needed
 - **BRC-29 Payment Flow** — Browser-to-server funding via `createPaymentRequest()` and `receivePayment()`, compatible with BRC-100 wallets like MetaNet Client
 
+## Developed With `@bsv/simple-mcp`
+
+This project was built with the help of [`@bsv/simple-mcp`](https://github.com/bsv-blockchain/simple-mcp) — an MCP server that plugs into AI coding tools like Claude Code and provides code generation for `@bsv/simple` patterns. Instead of reading docs and writing boilerplate from scratch, the MCP server generates wallet setup, payment handlers, inscription code, and more — letting you focus on application logic while it handles the BSV integration details.
+
 ## Quick Start
 
 ```bash
