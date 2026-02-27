@@ -1,0 +1,3 @@
+[
+  { "name": "BBC News", "feedUrl": "https://feeds.bbci.co.uk/news/rss.xml", "pollInterval": 120 }
+]
