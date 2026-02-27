@@ -1,6 +1,6 @@
 {
   "name": "headline-anchor",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,13 +12,13 @@
   },
   "dependencies": {
     "@bsv/simple": "^0.2.3",
-    "better-sqlite3": "^11.0.0",
+    "pg": "^8.13.0",
     "dotenv": "^17.3.1",
     "express": "^4.21.0",
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.8",
+    "@types/pg": "^8.11.0",
     "@types/express": "^4.17.21",
     "@types/node": "^22.0.0",
     "@types/react": "^18.3.0",
