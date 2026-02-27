@@ -6,7 +6,7 @@ BSV-powered app that crawls news headlines from RSS feeds, anchors content hashe
 
 - **Backend**: TypeScript, Node.js, Express
 - **BSV**: `@bsv/simple` v0.2.3 (`ServerWallet`, `inscribeJSON()`)
-- **Database**: SQLite via `better-sqlite3` (WAL mode)
+- **Database**: PostgreSQL 16 via `pg` (node-postgres) connection pool
 - **RSS**: `rss-parser`
 - **Frontend**: React 18 + Vite 5
 - **Hashing**: Node.js `crypto` (SHA-256)
@@ -16,7 +16,7 @@ BSV-powered app that crawls news headlines from RSS feeds, anchors content hashe
 ```
 server/
   index.ts        — Express server, API routes, static serving, source seeding, wallet endpoints
-  db.ts           — SQLite schema + all query helpers (sources, headlines, changes, stats)
+  db.ts           — PostgreSQL schema + all async query helpers (sources, headlines, changes, stats)
   wallet.ts       — ServerWallet singleton, BRC-29 funding flow, balance monitor
   anchor.ts       — inscribeJSON wrappers (hash-only, minimal on-chain data)
   crawler.ts      — RSS fetching + normalization via rss-parser
@@ -60,12 +60,14 @@ src/
 
 ## Database
 
-SQLite file: `headline-anchor.db` (auto-created at project root). Three tables:
+PostgreSQL via `pg` connection pool. Connection string from `DATABASE_URL` env var (defaults to `postgres://headline:headline@localhost:5432/headline_anchor`).
+
+Run `docker compose up -d` to start a local Postgres instance. Three tables:
 - `sources` — RSS feed configs (seeded from `sources.config.json` on startup)
 - `headlines` — tracked headlines with content_hash and txid
 - `headline_changes` — detected edits with old/new title+description and change_txid
 
-Schema uses `CREATE TABLE IF NOT EXISTS` — no migrations needed.
+Schema uses `CREATE TABLE IF NOT EXISTS` in `initDb()` — called at server startup before seeding. All DB functions are async.
 
 ## BSV Wallet
 
@@ -108,8 +110,6 @@ RSS sources in `sources.config.json`. Seeded into DB on first run. Delete DB and
 
 ## Upcoming
 
-- Migrate from SQLite to PostgreSQL (or similar)
-- docker-compose for local DB
 - Flux deployment examples
 - Push to github bsv-blockchain-demos
 - GHCR container workflows

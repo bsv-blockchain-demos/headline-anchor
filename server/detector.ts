@@ -8,7 +8,7 @@ export async function processHeadlines(source: Source, headlines: RawHeadline[])
   let changedCount = 0
 
   for (const raw of headlines) {
-    const existing = getHeadlineByUrl(raw.url)
+    const existing = await getHeadlineByUrl(raw.url)
 
     if (!existing) {
       // New headline — anchor hash only
@@ -16,7 +16,7 @@ export async function processHeadlines(source: Source, headlines: RawHeadline[])
         contentHash: raw.contentHash,
       })
 
-      insertHeadline(
+      await insertHeadline(
         source.id, raw.title, raw.description, raw.url,
         raw.contentHash, txid, new Date().toISOString()
       )
@@ -33,7 +33,7 @@ export async function processHeadlines(source: Source, headlines: RawHeadline[])
         })
       }
 
-      insertChange(
+      await insertChange(
         existing.id, existing.title, raw.title,
         existing.description, raw.description,
         existing.content_hash, raw.contentHash,
@@ -45,7 +45,7 @@ export async function processHeadlines(source: Source, headlines: RawHeadline[])
         contentHash: raw.contentHash,
       })
 
-      updateHeadline(existing.id, raw.title, raw.description, raw.contentHash, newTxid)
+      await updateHeadline(existing.id, raw.title, raw.description, raw.contentHash, newTxid)
       changedCount++
     }
     // If hash matches, skip (no change)

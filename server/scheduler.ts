@@ -15,8 +15,8 @@ async function pollSource(source: Source) {
   }
 }
 
-export function startScheduler() {
-  const sources = getAllSources()
+export async function startScheduler() {
+  const sources = await getAllSources()
   console.log(`[scheduler] Starting polling for ${sources.length} sources`)
 
   sources.forEach((source, index) => {

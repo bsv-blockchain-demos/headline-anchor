@@ -3,7 +3,7 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import {
-  getOrCreateSource, getAllSources,
+  initDb, syncSources, getAllSources,
   getRecentHeadlines, getHeadlineById,
   getRecentChanges, getChangeById,
   getStats,
@@ -18,52 +18,40 @@ const startTime = Date.now()
 
 app.use(express.json())
 
-// --- Seed sources from config ---
-const configPath = path.join(__dirname, '..', 'sources.config.json')
-if (fs.existsSync(configPath)) {
-  const sources = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Array<{
-    name: string; feedUrl: string; pollInterval: number
-  }>
-  for (const s of sources) {
-    getOrCreateSource(s.name, s.feedUrl, s.pollInterval)
-  }
-  console.log(`[server] Seeded ${sources.length} sources from config`)
-}
-
 // --- API Routes ---
 
-app.get('/api/headlines', (req, res) => {
+app.get('/api/headlines', async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page as string) || 1)
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
   const source = req.query.source as string | undefined
-  const headlines = getRecentHeadlines(page, limit, source)
+  const headlines = await getRecentHeadlines(page, limit, source)
   res.json({ page, limit, data: headlines })
 })
 
-app.get('/api/headlines/:id', (req, res) => {
+app.get('/api/headlines/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10)
-  const headline = getHeadlineById(id)
+  const headline = await getHeadlineById(id)
   if (!headline) return res.status(404).json({ error: 'Not found' })
   res.json(headline)
 })
 
-app.get('/api/changes', (req, res) => {
+app.get('/api/changes', async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page as string) || 1)
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
   const source = req.query.source as string | undefined
-  const changes = getRecentChanges(page, limit, source)
+  const changes = await getRecentChanges(page, limit, source)
   res.json({ page, limit, data: changes })
 })
 
-app.get('/api/changes/:id', (req, res) => {
+app.get('/api/changes/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10)
-  const change = getChangeById(id)
+  const change = await getChangeById(id)
   if (!change) return res.status(404).json({ error: 'Not found' })
   res.json(change)
 })
 
-app.get('/api/sources', (_req, res) => {
-  const sources = getAllSources()
+app.get('/api/sources', async (_req, res) => {
+  const sources = await getAllSources()
   res.json(sources)
 })
 
@@ -101,8 +89,8 @@ app.post('/api/wallet/receive', async (req, res) => {
   }
 })
 
-app.get('/api/stats', (_req, res) => {
-  const stats = getStats()
+app.get('/api/stats', async (_req, res) => {
+  const stats = await getStats()
   const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000)
   res.json({ ...stats, uptimeSeconds })
 })
@@ -117,10 +105,29 @@ if (fs.existsSync(distPath)) {
 }
 
 // --- Start ---
-app.listen(PORT, () => {
-  console.log(`[server] Listening on http://localhost:${PORT}`)
-  getWallet()
-    .then(() => startBalanceMonitor())
-    .catch(err => console.error('[wallet] Init failed:', err))
-  startScheduler()
+async function start() {
+  await initDb()
+
+  // Sync sources from config — config file is the source of truth
+  const configPath = path.join(__dirname, '..', 'sources.config.json')
+  if (fs.existsSync(configPath)) {
+    const sources = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Array<{
+      name: string; feedUrl: string; pollInterval: number
+    }>
+    await syncSources(sources)
+    console.log(`[server] Synced ${sources.length} sources from config`)
+  }
+
+  app.listen(PORT, () => {
+    console.log(`[server] Listening on http://localhost:${PORT}`)
+    getWallet()
+      .then(() => startBalanceMonitor())
+      .catch(err => console.error('[wallet] Init failed:', err))
+    startScheduler()
+  })
+}
+
+start().catch(err => {
+  console.error('[server] Failed to start:', err)
+  process.exit(1)
 })

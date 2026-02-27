@@ -3,7 +3,4 @@ dist/
 dist-server/
 .env
 .server-wallet.json
-*.db
-*.db-shm
-*.db-wal
 .idea/
