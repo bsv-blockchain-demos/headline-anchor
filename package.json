@@ -8,7 +8,8 @@
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "vite",
     "build": "vite build && tsc -p tsconfig.server.json",
-    "start": "node dist-server/index.js"
+    "start": "node dist-server/index.js",
+    "generate-key": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
   },
   "dependencies": {
     "@bsv/simple": "^0.2.3",

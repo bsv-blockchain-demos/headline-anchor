@@ -43,6 +43,7 @@ src/
 - `npm run dev` — concurrent Express (tsx watch) + Vite dev server (`:5173` for frontend, `:3000` for API)
 - `npm run build` — Vite build + tsc server compilation
 - `npm start` — production mode (serves built frontend from dist/ on `:3000`)
+- `npm run generate-key` — generate a random 32-byte hex private key for `SERVER_PRIVATE_KEY`
 
 ## API Endpoints
 
@@ -111,8 +112,14 @@ All text content (titles, descriptions, diffs) stored in local DB only.
 
 RSS sources in `sources.config.json` (White House, BBC, AP, NYT, Al Jazeera). Synced to DB on startup via `syncSources()` — adds new, updates existing, disables removed. Poll intervals: 120s–180s depending on source.
 
+## Docker / GHCR
+
+- **Dockerfile**: Multi-stage build (Node 22 alpine). Build stage runs `npm run build`, runtime stage copies `dist/`, `dist-server/`, production `node_modules`, `sources.config.json`. Entry: `node dist-server/index.js`, port 3000.
+- **`.github/workflows/ghcr.yml`**: Triggers on push to `main` and `v*` tags. Builds multi-arch (`linux/amd64`, `linux/arm64`) via Buildx (no QEMU needed — Buildx container driver handles it). Pushes to `ghcr.io/bsv-blockchain-demos/headline-anchor` with tags: `latest`, `sha-<commit>`, semver on tag.
+- **docker-compose.yml**: `docker compose up` starts only Postgres (dev). `docker compose --profile deploy up` starts both Postgres and the app from the GHCR image. The deploy profile requires `SERVER_PRIVATE_KEY` env var (set in shell or `.env`).
+- **`.env.example`**: Documents all env vars. `SERVER_PRIVATE_KEY` is required for containerized/Kube deployments; local dev auto-generates to `.server-wallet.json`.
+
 ## Upcoming
 
 - Flux deployment examples
 - Push to github bsv-blockchain-demos
-- GHCR container workflows
