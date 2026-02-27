@@ -116,7 +116,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '0.75rem',
   },
   label: {
-    color: '#888',
+    color: '#aaa',
     fontSize: '0.75rem',
     fontWeight: 600,
     textTransform: 'uppercase',

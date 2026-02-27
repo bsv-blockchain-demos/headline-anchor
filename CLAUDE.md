@@ -118,8 +118,3 @@ RSS sources in `sources.config.json` (White House, BBC, AP, NYT, Al Jazeera). Sy
 - **`.github/workflows/ghcr.yml`**: Triggers on push to `main` and `v*` tags. Builds multi-arch (`linux/amd64`, `linux/arm64`) via Buildx (no QEMU needed — Buildx container driver handles it). Pushes to `ghcr.io/bsv-blockchain-demos/headline-anchor` with tags: `latest`, `sha-<commit>`, semver on tag.
 - **docker-compose.yml**: `docker compose up` starts only Postgres (dev). `docker compose --profile deploy up` starts both Postgres and the app from the GHCR image. The deploy profile requires `SERVER_PRIVATE_KEY` env var (set in shell or `.env`).
 - **`.env.example`**: Documents all env vars. `SERVER_PRIVATE_KEY` is required for containerized/Kube deployments; local dev auto-generates to `.server-wallet.json`.
-
-## Upcoming
-
-- Flux deployment examples
-- Push to github bsv-blockchain-demos

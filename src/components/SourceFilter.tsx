@@ -50,7 +50,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '20px',
     border: '1px solid #333',
     background: 'transparent',
-    color: '#888',
+    color: '#aaa',
     cursor: 'pointer',
     fontSize: '0.8rem',
     transition: 'all 0.15s',

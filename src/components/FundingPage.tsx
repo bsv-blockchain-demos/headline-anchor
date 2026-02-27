@@ -172,7 +172,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'monospace',
   },
   balanceLabel: {
-    color: '#888',
+    color: '#aaa',
     fontSize: '0.85rem',
     marginTop: '0.25rem',
   },
@@ -183,7 +183,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '0.5rem',
   },
   description: {
-    color: '#888',
+    color: '#aaa',
     fontSize: '0.85rem',
     lineHeight: 1.6,
     marginBottom: '1.5rem',
