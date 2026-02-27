@@ -1,5 +1,7 @@
 # HeadlineAnchor
 
+**Live:** [headline-anchor.bsvb.tech](https://headline-anchor.bsvb.tech/)
+
 HeadlineAnchor watches major news sources for headline changes and creates a permanent, tamper-proof record on the BSV blockchain. When a news outlet silently edits a headline or description, HeadlineAnchor catches it, stores the before and after, and anchors a cryptographic hash on-chain so anyone can verify what was published and when.
 
 ## How It Works

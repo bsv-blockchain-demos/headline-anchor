@@ -45,26 +45,24 @@ export function App() {
   return (
     <div>
       <header style={styles.header}>
-        <a href="#headlines" style={styles.logoLink}>
-          <span style={styles.logoAnchor}>&#9875;</span>
-          <h1 style={styles.title}>
-            <span style={styles.titlePrefix}>Headline</span>
-            <span style={styles.titleAccent}>Anchor</span>
-          </h1>
+        <a href="#changes" style={styles.logoLink}>
+          <img src="/logo.jpg" alt="HeadlineAnchor" style={styles.logoImg} />
         </a>
-        <p style={styles.subtitle}>
-          <span style={styles.subtitleBracket}>[</span>
-          immutable news accountability on BSV
-          <span style={styles.subtitleBracket}>]</span>
-        </p>
-        <a
-          href="https://github.com/bsv-blockchain-demos/headline-anchor"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={styles.ghLink}
-        >
-          GitHub
-        </a>
+        <div style={styles.headerMeta}>
+          <span style={styles.subtitle}>
+            <span style={styles.subtitleBracket}>[</span>
+            immutable news accountability on <span style={styles.subtitleBracket}>BSV</span>
+            <span style={styles.subtitleBracket}>]</span>
+          </span>
+          <a
+            href="https://github.com/bsv-blockchain-demos/headline-anchor"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={styles.ghLink}
+          >
+            GitHub
+          </a>
+        </div>
       </header>
 
       <nav style={styles.nav}>
@@ -130,37 +128,25 @@ function formatUptime(seconds: number): string {
 const styles: Record<string, React.CSSProperties> = {
   header: {
     textAlign: 'center',
-    padding: '2.5rem 0 1.5rem',
+    padding: '1.5rem 0 1rem',
   },
   logoLink: {
-    textDecoration: 'none',
-    color: 'inherit',
-    display: 'inline-flex',
+    display: 'block',
+  },
+  logoImg: {
+    width: '100%',
+    height: 'auto',
+  },
+  headerMeta: {
+    display: 'flex',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: '0.6rem',
-  },
-  logoAnchor: {
-    fontSize: '2.2rem',
-    color: '#4a9eff',
-    filter: 'drop-shadow(0 0 8px rgba(74, 158, 255, 0.4))',
-  },
-  title: {
-    fontSize: '2rem',
-    fontWeight: 700,
-    fontFamily: "'JetBrains Mono', monospace",
-    letterSpacing: '-0.03em',
-    lineHeight: 1,
-  },
-  titlePrefix: {
-    color: '#fff',
-  },
-  titleAccent: {
-    color: '#4a9eff',
+    gap: '1rem',
+    marginTop: '0.5rem',
   },
   subtitle: {
     color: '#aaa',
     fontSize: '0.8rem',
-    marginTop: '0.5rem',
     fontFamily: "'JetBrains Mono', monospace",
     letterSpacing: '0.05em',
   },
@@ -168,8 +154,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#4a9eff',
   },
   ghLink: {
-    display: 'inline-block',
-    marginTop: '0.6rem',
     color: '#aaa',
     fontSize: '0.75rem',
     fontFamily: "'JetBrains Mono', monospace",
