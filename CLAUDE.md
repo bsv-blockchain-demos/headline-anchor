@@ -1,11 +1,11 @@
 # HeadlineAnchor
 
-BSV-powered app that crawls news headlines from RSS feeds, anchors content hashes on-chain via OP_RETURN, detects silent edits, and anchors change records too. Web UI shows a live feed with cryptographic proof links and a funding page.
+BSV-powered app that crawls news headlines from RSS feeds, anchors content hashes on-chain via `inscribeFileHash`, detects silent edits, and anchors each iteration. Web UI shows a live feed with word-level diffs, cryptographic proof links, and a funding page.
 
 ## Tech Stack
 
 - **Backend**: TypeScript, Node.js, Express
-- **BSV**: `@bsv/simple` v0.2.3 (`ServerWallet`, `inscribeJSON()`)
+- **BSV**: `@bsv/simple` v0.2.3 (`ServerWallet`, `inscribeFileHash()`)
 - **Database**: PostgreSQL 16 via `pg` (node-postgres) connection pool
 - **RSS**: `rss-parser`
 - **Frontend**: React 18 + Vite 5
@@ -18,10 +18,10 @@ server/
   index.ts        — Express server, API routes, static serving, source seeding, wallet endpoints
   db.ts           — PostgreSQL schema + all async query helpers (sources, headlines, changes, stats)
   wallet.ts       — ServerWallet singleton, BRC-29 funding flow, balance monitor
-  anchor.ts       — inscribeJSON wrappers (hash-only, minimal on-chain data)
-  crawler.ts      — RSS fetching + normalization via rss-parser
-  detector.ts     — Compares fetched headlines against DB, triggers anchoring
-  scheduler.ts    — setInterval polling per source, staggered start
+  anchor.ts       — Serialized inscribeFileHash wrapper with low-funds mode
+  crawler.ts      — RSS fetching + normalization via rss-parser (descriptions truncated at 1024 chars)
+  detector.ts     — Compares fetched headlines against DB, anchors new hash on insert or change
+  scheduler.ts    — setInterval polling per source, staggered start, retry sweep for unanchored items
 src/
   index.html      — Vite entry HTML
   main.tsx        — React root
@@ -31,8 +31,8 @@ src/
   components/
     HeadlineFeed.tsx  — Paginated headline list
     HeadlineCard.tsx  — Single headline with source pill, time, proof badge
-    ChangesFeed.tsx   — Paginated change list with inline diffs
-    DiffView.tsx      — Before/after diff display (red/green)
+    ChangesFeed.tsx   — Paginated change list with diffs, hash comparison, expandable hashed content
+    DiffView.tsx      — Word-level inline diff with context collapsing
     ProofBadge.tsx    — Truncated txid linking to whatsonchain.com
     SourceFilter.tsx  — Chip-based source filter
     FundingPage.tsx   — Wallet balance display + BRC-100 funding flow
@@ -84,29 +84,32 @@ Flow: `GET /api/wallet/request` → browser wallet `fundServerWallet()` → `POS
 
 ### Balance Monitor
 
-Polls `listOutputs()` every 30s, logs changes. Exposed via `GET /api/wallet/balance`.
+Polls `listOutputs()` every 30s (paginated, 100 per page), logs changes. Exposed via `GET /api/wallet/balance`.
 
-## On-Chain Protocol
+## On-Chain Anchoring
 
-Minimal hash-only anchoring to minimize costs. Protocol prefix: `"p": "ha"`.
-
-- **Headline**: `{"p":"ha","t":"h","h":"sha256:..."}`
-- **Change**: `{"p":"ha","t":"c","ref":"<original_txid>","ph":"sha256:...","ch":"sha256:..."}`
+Uses `inscribeFileHash(hash)` — writes only the bare SHA-256 hex hash on-chain. Both new headlines and edited headlines get the same treatment: anchor the current content hash. No separate change record on-chain; change history is tracked in the local DB only.
 
 All text content (titles, descriptions, diffs) stored in local DB only.
 
 ## Key Patterns
 
 - Content hash: `sha256(title + '|' + description)` — used to detect edits
+- Descriptions truncated at 1024 characters before hashing and storage
 - Headline lookup: by URL (unique index) — same URL = same article
 - Error handling: per-source, per-headline — one failure doesn't crash others
+- Serialized anchoring: all `inscribeFileHash` calls go through a mutex to prevent UTXO race conditions
+- Low-funds mode: on "Insufficient funds" error, anchoring pauses silently; retry sweep probes every 60s
+- Retry sweep: runs on startup + every 60s, re-anchors headlines/changes with null txid, stops on first funds failure
 - Scheduler stagger: 5s delay between initial source fetches
+- Poll logging: each source poll logs headline count and response time
 - Frontend: inline styles (no CSS framework), dark theme, all client state via useState/useEffect
+- Diff view: word-level LCS diff with inline red (strikethrough) / green highlights, context collapsing for long text
 - Vite proxy: `/api/` → Express. Note the trailing slash — prevents intercepting `api.ts` source file
 
 ## Configuration
 
-RSS sources in `sources.config.json`. Seeded into DB on first run. Delete DB and restart to re-seed with updated sources.
+RSS sources in `sources.config.json` (White House, BBC, AP, NYT, Al Jazeera). Synced to DB on startup via `syncSources()` — adds new, updates existing, disables removed. Poll intervals: 120s–180s depending on source.
 
 ## Upcoming
 
