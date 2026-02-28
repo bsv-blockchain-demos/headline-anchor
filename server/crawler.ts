@@ -37,7 +37,10 @@ function extractHeadlines(feed: Parser.Output<Parser.Item>): RawHeadline[] {
 
   for (const item of feed.items) {
     const title = (item.title ?? '').trim()
-    const url = (item.link ?? item.guid ?? '').trim()
+    const link = (item.link ?? '').trim()
+    const guid = (item.guid ?? '').trim()
+    // Prefer link, but fall back to guid if link is just a bare domain
+    const url = (link && new URL(link).pathname.length > 1 ? link : guid || link)
     if (!title || !url) continue
 
     const raw = (item.contentSnippet ?? item.content ?? item.summary ?? '').trim()
