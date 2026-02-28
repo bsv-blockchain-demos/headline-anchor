@@ -93,8 +93,8 @@ export async function syncSources(config: Array<{ name: string; feedUrl: string;
         [s.feedUrl, s.pollInterval, s.name]
       )
     } else {
-      // URL might exist under a different name — clear it first
-      await pool.query('DELETE FROM sources WHERE feed_url = $1', [s.feedUrl])
+      // URL might exist under a different name — disable it instead of deleting (FK safety)
+      await pool.query('UPDATE sources SET enabled = false WHERE feed_url = $1', [s.feedUrl])
       await pool.query(
         'INSERT INTO sources (name, feed_url, poll_interval_seconds, enabled) VALUES ($1, $2, $3, true)',
         [s.name, s.feedUrl, s.pollInterval]

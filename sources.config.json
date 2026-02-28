@@ -3,5 +3,10 @@
   { "name": "BBC News", "feedUrl": "https://feeds.bbci.co.uk/news/rss.xml", "pollInterval": 120 },
   { "name": "AP News", "feedUrl": "https://feedx.net/rss/ap.xml", "pollInterval": 120 },
   { "name": "NY Times", "feedUrl": "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "pollInterval": 180 },
-  { "name": "Al Jazeera", "feedUrl": "https://www.aljazeera.com/xml/rss/all.xml", "pollInterval": 180 }
+  { "name": "Al Jazeera", "feedUrl": "https://www.aljazeera.com/xml/rss/all.xml", "pollInterval": 180 },
+  { "name": "Haaretz", "feedUrl": "https://www.haaretz.com/srv/haaretz-latest-headlines", "pollInterval": 180 },
+  { "name": "RT", "feedUrl": "https://www.rt.com/rss/", "pollInterval": 180 },
+  { "name": "The Guardian", "feedUrl": "https://www.theguardian.com/world/rss", "pollInterval": 180 },
+  { "name": "Fox News", "feedUrl": "https://moxie.foxnews.com/google-publisher/latest.xml", "pollInterval": 180 },
+  { "name": "Washington Post", "feedUrl": "https://feeds.washingtonpost.com/rss/world", "pollInterval": 180 }
 ]
