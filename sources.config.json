@@ -7,6 +7,5 @@
   { "name": "Haaretz", "feedUrl": "https://www.haaretz.com/srv/haaretz-latest-headlines", "pollInterval": 180 },
   { "name": "RT", "feedUrl": "https://www.rt.com/rss/", "pollInterval": 180 },
   { "name": "The Guardian", "feedUrl": "https://www.theguardian.com/world/rss", "pollInterval": 180 },
-  { "name": "Fox News", "feedUrl": "https://moxie.foxnews.com/google-publisher/latest.xml", "pollInterval": 180 },
-  { "name": "Washington Post", "feedUrl": "https://feeds.washingtonpost.com/rss/world", "pollInterval": 180 }
+  { "name": "Fox News", "feedUrl": "https://moxie.foxnews.com/google-publisher/latest.xml", "pollInterval": 180 }
 ]
