@@ -1,21 +1,32 @@
 import React, { useState, useEffect } from 'react'
-import { HeadlineFeed } from './components/HeadlineFeed'
+import { fetchSources, fetchStats, fetchChanges, fetchHeadlines } from './api'
+import type { Headline, HeadlineChange, Stats } from './types'
+import { formatNumber, formatUptime } from './format'
+import { HaMark } from './components/HaMark'
+import { LiveWire } from './components/LiveWire'
 import { ChangesFeed } from './components/ChangesFeed'
 import { ChangeDetail } from './components/ChangeDetail'
-import { SourceFilter } from './components/SourceFilter'
-import { FundingPage } from './components/FundingPage'
-import { fetchStats } from './api'
-import type { Stats } from './types'
+import { HeadlineFeed } from './components/HeadlineFeed'
+import { StatsView } from './components/StatsView'
+import { FundModal } from './components/FundingPage'
+import { LiveDot } from './components/ui'
+import { IconSun, IconMoon, IconGitHub } from './icons'
 
-type Tab = 'headlines' | 'changes' | 'stats' | 'fund'
-const TABS: Tab[] = ['headlines', 'changes', 'stats', 'fund']
+type Theme = 'dark' | 'light'
+type ContentTab = 'headlines' | 'changes' | 'stats'
+const REPO_URL = 'https://github.com/bsv-blockchain-demos/headline-anchor'
+const WINDOW = 40
 
-function parseHash(): { tab: Tab; changeId?: number } {
-  const raw = window.location.hash.replace(/^#/, '')
-  const changeMatch = raw.match(/^changes\/(\d+)$/)
-  if (changeMatch) return { tab: 'changes', changeId: Number(changeMatch[1]) }
-  if (TABS.includes(raw as Tab)) return { tab: raw as Tab }
-  return { tab: 'changes' }
+interface Route { tab: ContentTab; id: number | null }
+
+function parseHash(): { route: Route; fund: boolean } {
+  const raw = (window.location.hash || '').replace(/^#/, '')
+  if (raw === 'fund') return { route: { tab: 'changes', id: null }, fund: true }
+  const detail = raw.match(/^changes\/(\d+)$/)
+  if (detail) return { route: { tab: 'changes', id: Number(detail[1]) }, fund: false }
+  const [t] = raw.split('/')
+  const tab: ContentTab = t === 'headlines' || t === 'stats' ? (t as ContentTab) : 'changes'
+  return { route: { tab, id: null }, fund: false }
 }
 
 function navigate(hash: string) {
@@ -23,204 +34,139 @@ function navigate(hash: string) {
 }
 
 export function App() {
-  const [route, setRoute] = useState(parseHash)
-  const [source, setSource] = useState<string | undefined>()
-  const [stats, setStats] = useState<Stats | null>(null)
+  const [theme, setTheme] = useState<Theme>('dark')
+  const [route, setRoute] = useState<Route>(() => parseHash().route)
+  const [fundOpen, setFundOpen] = useState<boolean>(() => parseHash().fund)
 
+  const [source, setSourceState] = useState('All')
+  const [chPage, setChPage] = useState(1)
+  const [hlPage, setHlPage] = useState(1)
+
+  const [sourceNames, setSourceNames] = useState<string[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [uptime, setUptime] = useState<number | null>(null)
+  const [balance, setBalance] = useState<number | null>(null)
+  const [changes, setChanges] = useState<HeadlineChange[]>([])
+  const [headlines, setHeadlines] = useState<Headline[]>([])
+  const [chLoading, setChLoading] = useState(true)
+  const [hlLoading, setHlLoading] = useState(true)
+
+  // Theme -> root attribute (drives the CSS token layer).
+  useEffect(() => { document.documentElement.setAttribute('data-theme', theme) }, [theme])
+
+  // Hash routing. #fund toggles the modal without changing the content route.
   useEffect(() => {
-    const onHashChange = () => setRoute(parseHash())
-    window.addEventListener('hashchange', onHashChange)
-    if (!window.location.hash) navigate('changes')
-    return () => window.removeEventListener('hashchange', onHashChange)
+    const apply = () => {
+      const { route: r, fund } = parseHash()
+      setFundOpen(fund)
+      if (!fund) setRoute(r)
+      else if (window.location.hash.replace(/^#/, '') === 'fund') { /* keep current content route */ }
+    }
+    if (!window.location.hash) navigate('#changes')
+    apply()
+    window.addEventListener('hashchange', apply)
+    return () => window.removeEventListener('hashchange', apply)
   }, [])
 
-  const tab = route.tab
-
+  // Initial data.
+  const loadBalance = () => {
+    fetch('/api/wallet/balance').then((r) => r.json()).then((d) => setBalance(d.satoshis)).catch(() => {})
+  }
   useEffect(() => {
-    if (tab === 'stats') {
-      fetchStats().then(setStats).catch(console.error)
-    }
-  }, [tab])
+    fetchSources().then((ss) => setSourceNames(ss.map((s) => s.name))).catch(() => {})
+    fetchStats().then((st) => { setStats(st); setUptime(st.uptimeSeconds) }).catch(() => {})
+    fetchChanges(1, WINDOW).then((r) => setChanges(r.data)).catch(() => {}).finally(() => setChLoading(false))
+    fetchHeadlines(1, WINDOW).then((r) => setHeadlines(r.data)).catch(() => {}).finally(() => setHlLoading(false))
+    loadBalance()
+    const bal = setInterval(loadBalance, 30000)
+    const tick = setInterval(() => setUptime((u) => (u == null ? u : u + 1)), 1000)
+    return () => { clearInterval(bal); clearInterval(tick) }
+  }, [])
+
+  // Navigation via hash (the effect above turns it into state).
+  const contentHash = route.id != null && route.tab === 'changes' ? `#changes/${route.id}` : `#${route.tab}`
+  const goTab = (t: ContentTab) => navigate(`#${t}`)
+  const openFund = () => navigate('#fund')
+  const closeFund = () => navigate(contentHash)
+  const openDetail = (id: number) => navigate(`#changes/${id}`)
+  const setSource = (s: string) => { setSourceState(s); setChPage(1); setHlPage(1) }
+
+  const statsNums = stats ? { headlines: stats.headlines, anchors: stats.anchored, changes: stats.changes, sources: stats.sources } : null
+  const uptimeLabel = uptime == null ? '—' : formatUptime(uptime)
+
+  const isDetail = route.tab === 'changes' && route.id != null
+
+  const tabDefs: [string, ContentTab][] = [['Headlines', 'headlines'], ['Changes', 'changes'], ['Stats', 'stats']]
 
   return (
-    <div>
-      <header style={styles.header}>
-        <a href="#changes" style={styles.logoLink}>
-          <img src="/logo.jpg" alt="HeadlineAnchor" style={styles.logoImg} />
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 22px 40px' }}>
+      {/* masthead */}
+      <div style={{ height: 4, background: 'var(--text)', marginTop: 22 }} />
+      <div style={{ height: 1, background: 'var(--text)', marginTop: 2 }} />
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '16px 0', flexWrap: 'wrap' }}>
+        <a href="#changes" style={{ display: 'flex', alignItems: 'center', gap: 13, textDecoration: 'none' }}>
+          <HaMark size={44} idSuffix="head" />
+          <div style={{ lineHeight: 1.05 }}>
+            <div style={{ font: "900 24px/1 'Archivo'", letterSpacing: '-.7px', color: 'var(--text)' }}>Headline Anchor</div>
+            <div style={{ font: "500 9px/1 'JetBrains Mono',monospace", color: 'var(--text2)', marginTop: 9, letterSpacing: '1.4px', textTransform: 'uppercase' }}>immutable news accountability on BSV Blockchain</div>
+          </div>
         </a>
-        <div style={styles.headerMeta}>
-          <span style={styles.subtitle}>
-            <span style={styles.subtitleBracket}>[</span>
-            immutable news accountability on <span style={styles.subtitleBracket}>BSV</span>
-            <span style={styles.subtitleBracket}>]</span>
-          </span>
-          <a
-            href="https://github.com/bsv-blockchain-demos/headline-anchor"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={styles.ghLink}
-          >
-            GitHub
-          </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <button onClick={openFund} title="Fund the server wallet" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, font: "700 13px 'Archivo'", color: 'var(--ok)', background: 'var(--okBg)', border: '1px solid var(--okBorder)', borderRadius: 2, padding: '8px 13px', cursor: 'pointer' }}>
+            <LiveDot size={6} />
+            {balance == null ? '—' : formatNumber(balance)}<span style={{ color: 'var(--text2)', fontWeight: 600, fontSize: 11 }}>sats</span>
+          </button>
+          <button onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} title="Toggle theme" style={{ width: 40, height: 40, display: 'grid', placeItems: 'center', background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 2, color: 'var(--text2)', cursor: 'pointer' }}>
+            {theme === 'dark' ? <IconSun size={17} /> : <IconMoon size={17} />}
+          </button>
         </div>
       </header>
 
-      <nav style={styles.nav}>
-        {TABS.map((t) => (
-          <a
-            key={t}
-            href={`#${t}`}
-            style={{
-              ...styles.tab,
-              ...(tab === t && !route.changeId ? styles.tabActive : {}),
-            }}
-          >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </a>
-        ))}
+      <LiveWire changes={changes} />
+
+      {/* nav */}
+      <nav style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 26, overflowX: 'auto' }}>
+        {tabDefs.map(([name, key]) => {
+          const active = !fundOpen && route.tab === key
+          return (
+            <button
+              key={key}
+              onClick={() => goTab(key)}
+              style={{ font: `${active ? 700 : 600} 13px 'Archivo'`, letterSpacing: '.2px', whiteSpace: 'nowrap', cursor: 'pointer', background: 'transparent', border: 'none', borderBottom: `2px solid ${active ? 'var(--accent)' : 'transparent'}`, borderRadius: 0, padding: '12px 2px', marginRight: 26, color: active ? 'var(--text)' : 'var(--text2)' }}
+            >
+              {name}
+            </button>
+          )
+        })}
       </nav>
 
-      {(tab === 'headlines' || (tab === 'changes' && !route.changeId)) && (
-        <SourceFilter selected={source} onChange={setSource} />
-      )}
+      {/* content */}
+      <div>
+        {isDetail && <ChangeDetail id={route.id!} onBack={() => goTab('changes')} />}
+        {!isDetail && route.tab === 'changes' && (
+          <ChangesFeed changes={changes} sourceNames={sourceNames} source={source} onSource={setSource} page={chPage} onPage={setChPage} onOpen={openDetail} loading={chLoading} />
+        )}
+        {route.tab === 'headlines' && (
+          <HeadlineFeed headlines={headlines} sourceNames={sourceNames} source={source} onSource={setSource} page={hlPage} onPage={setHlPage} stats={statsNums} uptimeLabel={uptimeLabel} loading={hlLoading} />
+        )}
+        {route.tab === 'stats' && <StatsView stats={statsNums} uptimeLabel={uptimeLabel} />}
+      </div>
 
-      {tab === 'headlines' && <HeadlineFeed source={source} />}
-      {tab === 'changes' && !route.changeId && <ChangesFeed source={source} />}
-      {tab === 'changes' && route.changeId && <ChangeDetail id={route.changeId} />}
-      {tab === 'stats' && <StatsView stats={stats} />}
-      {tab === 'fund' && <FundingPage />}
+      {/* footer */}
+      <footer style={{ marginTop: 44, borderTop: '1px solid var(--text)', padding: '20px 0 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <HaMark size={34} idSuffix="foot" />
+          <div style={{ lineHeight: 1.35 }}>
+            <div style={{ font: "900 14px 'Archivo'", letterSpacing: '-.3px', color: 'var(--text)' }}>Headline Anchor</div>
+            <div style={{ font: "500 9px 'JetBrains Mono',monospace", color: 'var(--muted)', letterSpacing: '1.2px', textTransform: 'uppercase', marginTop: 4 }}>immutable news accountability on BSV Blockchain</div>
+          </div>
+        </div>
+        <a href={REPO_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, font: "600 12px 'Archivo'", color: 'var(--text2)', background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 2, padding: '8px 13px' }}>
+          <IconGitHub size={15} />GitHub
+        </a>
+      </footer>
+
+      {fundOpen && <FundModal balance={balance} onClose={closeFund} onFunded={loadBalance} />}
     </div>
   )
-}
-
-function StatsView({ stats }: { stats: Stats | null }) {
-  if (!stats) return <p style={{ padding: '2rem', textAlign: 'center' }}>Loading...</p>
-
-  const uptime = formatUptime(stats.uptimeSeconds)
-
-  return (
-    <div style={styles.statsGrid}>
-      <StatCard label="Headlines Tracked" value={stats.headlines} />
-      <StatCard label="On-Chain Anchors" value={stats.anchored} />
-      <StatCard label="Changes Detected" value={stats.changes} />
-      <StatCard label="Active Sources" value={stats.sources} />
-      <StatCard label="Uptime" value={uptime} />
-    </div>
-  )
-}
-
-function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div style={styles.statCard}>
-      <div style={styles.statValue}>{value}</div>
-      <div style={styles.statLabel}>{label}</div>
-    </div>
-  )
-}
-
-function formatUptime(seconds: number): string {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  if (h > 0) return `${h}h ${m}m`
-  return `${m}m`
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  header: {
-    textAlign: 'center',
-    padding: '1.5rem 0 1rem',
-  },
-  logoLink: {
-    display: 'block',
-  },
-  logoImg: {
-    width: '100%',
-    height: 'auto',
-  },
-  headerMeta: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: '1rem',
-    marginTop: '0.5rem',
-  },
-  subtitle: {
-    color: '#aaa',
-    fontSize: '0.8rem',
-    fontFamily: "'JetBrains Mono', monospace",
-    letterSpacing: '0.05em',
-  },
-  subtitleBracket: {
-    color: '#4a9eff',
-  },
-  ghLink: {
-    color: '#aaa',
-    fontSize: '0.75rem',
-    fontFamily: "'JetBrains Mono', monospace",
-    textDecoration: 'none',
-    border: '1px solid #333',
-    borderRadius: '4px',
-    padding: '3px 10px',
-    letterSpacing: '0.03em',
-    transition: 'all 0.15s',
-  },
-  nav: {
-    display: 'flex',
-    gap: '0.25rem',
-    justifyContent: 'center',
-    marginBottom: '1.5rem',
-    background: '#111',
-    border: '1px solid #1a1a1a',
-    borderRadius: '8px',
-    padding: '4px',
-    width: 'fit-content',
-    marginLeft: 'auto',
-    marginRight: 'auto',
-  },
-  tab: {
-    padding: '0.45rem 1.25rem',
-    border: 'none',
-    borderRadius: '6px',
-    background: 'transparent',
-    color: '#aaa',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontFamily: "'JetBrains Mono', monospace",
-    fontWeight: 500,
-    textDecoration: 'none',
-    transition: 'all 0.15s',
-    letterSpacing: '0.02em',
-  },
-  tabActive: {
-    background: '#1a1a2e',
-    color: '#4a9eff',
-    boxShadow: '0 0 12px rgba(74, 158, 255, 0.15)',
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-    gap: '0.75rem',
-    padding: '1rem 0',
-  },
-  statCard: {
-    background: '#111',
-    border: '1px solid #1a1a1a',
-    borderRadius: '8px',
-    padding: '1.5rem',
-    textAlign: 'center',
-  },
-  statValue: {
-    fontSize: '2rem',
-    fontWeight: 700,
-    fontFamily: "'JetBrains Mono', monospace",
-    color: '#4a9eff',
-  },
-  statLabel: {
-    color: '#555',
-    fontSize: '0.75rem',
-    fontFamily: "'JetBrains Mono', monospace",
-    marginTop: '0.4rem',
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
-  },
 }
