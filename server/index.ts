@@ -10,6 +10,7 @@ import {
 } from './db.js'
 import { startScheduler } from './scheduler.js'
 import { getWallet, startBalanceMonitor, createFundingRequest, receiveFunding, getBalanceSatoshis } from './wallet.js'
+import { createBalanceRoute } from '@bsv-blockchain-demos/float-balance-route'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -95,15 +96,6 @@ app.get('/api/stats', async (_req, res) => {
   res.json({ ...stats, uptimeSeconds })
 })
 
-// --- Static file serving (production) ---
-const distPath = path.join(__dirname, '..', 'dist')
-if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath))
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'))
-  })
-}
-
 // --- Start ---
 async function start() {
   await initDb()
@@ -116,6 +108,29 @@ async function start() {
     }>
     await syncSources(sources)
     console.log(`[server] Synced ${sources.length} sources from config`)
+  }
+
+  // Float treasury balance route: read-only, mounted only when a token is
+  // provisioned. Sits after body parsing and before the SPA catch-all below.
+  if (process.env.FLOAT_BALANCE_TOKEN) {
+    const wallet = await getWallet()
+    app.use(createBalanceRoute({
+      wallet: wallet.getClient(),
+      appName: 'bsv-blockchain-demos/headline-anchor',
+      chain: 'main',
+      token: process.env.FLOAT_BALANCE_TOKEN,
+    }))
+    console.log('[float] Balance route mounted at GET /treasury/balance')
+  }
+
+  // Static frontend + SPA fallback (production). Registered last so the
+  // catch-all never shadows the API routes or the Float route.
+  const distPath = path.join(__dirname, '..', 'dist')
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath))
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'))
+    })
   }
 
   app.listen(PORT, () => {
