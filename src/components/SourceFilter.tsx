@@ -1,63 +1,31 @@
-import React, { useState, useEffect } from 'react'
-import { fetchSources } from '../api'
-import type { Source } from '../types'
+import React from 'react'
 
-interface SourceFilterProps {
-  selected: string | undefined
-  onChange: (source: string | undefined) => void
-}
-
-export function SourceFilter({ selected, onChange }: SourceFilterProps) {
-  const [sources, setSources] = useState<Source[]>([])
-
-  useEffect(() => {
-    fetchSources().then(setSources).catch(console.error)
-  }, [])
-
-  if (sources.length === 0) return null
-
+// Squared uppercase source chips. Active chip = ink fill. 'All' clears the filter.
+export function SourceFilter({
+  names, selected, onChange,
+}: { names: string[]; selected: string; onChange: (name: string) => void }) {
+  const chips = ['All', ...names]
   return (
-    <div style={styles.container}>
-      <button
-        style={{ ...styles.chip, ...(selected === undefined ? styles.chipActive : {}) }}
-        onClick={() => onChange(undefined)}
-      >
-        All
-      </button>
-      {sources.map((s) => (
-        <button
-          key={s.id}
-          style={{ ...styles.chip, ...(selected === s.name ? styles.chipActive : {}) }}
-          onClick={() => onChange(selected === s.name ? undefined : s.name)}
-        >
-          {s.name}
-        </button>
-      ))}
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '18px 0 6px' }}>
+      {chips.map((name) => {
+        const active = selected === name
+        return (
+          <button
+            key={name}
+            onClick={() => onChange(name)}
+            style={{
+              font: `${active ? 700 : 600} 10.5px 'Archivo'`,
+              textTransform: 'uppercase', letterSpacing: '.6px', cursor: 'pointer',
+              borderRadius: 2, padding: '6px 11px', transition: 'all .15s',
+              ...(active
+                ? { background: 'var(--text)', color: 'var(--bg)', border: '1px solid var(--text)' }
+                : { background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)' }),
+            }}
+          >
+            {name}
+          </button>
+        )
+      })}
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    display: 'flex',
-    gap: '0.4rem',
-    flexWrap: 'wrap',
-    marginBottom: '1rem',
-    justifyContent: 'center',
-  },
-  chip: {
-    padding: '4px 12px',
-    borderRadius: '20px',
-    border: '1px solid #333',
-    background: 'transparent',
-    color: '#aaa',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    transition: 'all 0.15s',
-  },
-  chipActive: {
-    background: '#1a1a2e',
-    color: '#4a9eff',
-    borderColor: '#4a9eff',
-  },
 }

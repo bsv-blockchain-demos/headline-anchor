@@ -1,169 +1,111 @@
-import React, { useState, useEffect } from 'react'
-import { fetchChanges } from '../api'
-import { DiffView } from './DiffView'
-import { ProofBadge } from './ProofBadge'
+import React from 'react'
 import type { HeadlineChange } from '../types'
+import { computeDiffTokens } from '../diff'
+import { timeAgo, truncHash } from '../format'
+import { SectionHeader, Pager, LiveDot } from './ui'
+import { SourceFilter } from './SourceFilter'
+import { BeforeHeadline, AfterHeadline } from './Diff'
+import { SealCheck, Spinner, IconX, IconArrowDown } from '../icons'
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return `${days}d ago`
+const PAGE_SIZE = 4
+
+interface Props {
+  changes: HeadlineChange[]
+  sourceNames: string[]
+  source: string
+  onSource: (s: string) => void
+  page: number
+  onPage: (p: number) => void
+  onOpen: (id: number) => void
+  loading: boolean
 }
 
-export function ChangesFeed({ source }: { source?: string }) {
-  const [changes, setChanges] = useState<HeadlineChange[]>([])
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    setPage(1)
-  }, [source])
-
-  useEffect(() => {
-    setLoading(true)
-    fetchChanges(page, 20, source)
-      .then((res) => setChanges(res.data))
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [page, source])
-
-  if (loading && changes.length === 0) {
-    return <p style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>Loading changes...</p>
-  }
-
-  if (changes.length === 0) {
-    return <p style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>No changes detected yet.</p>
-  }
+export function ChangesFeed({ changes, sourceNames, source, onSource, page, onPage, onOpen, loading }: Props) {
+  const filtered = source === 'All' ? changes : changes.filter((c) => c.source_name === source)
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const current = Math.min(page, pages)
+  const pageItems = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE)
 
   return (
-    <div>
-      {changes.map((c) => (
-        <a key={c.id} href={`#changes/${c.id}`} style={styles.cardLink}>
-          <div style={styles.card}>
-            <div style={styles.meta}>
-              <span style={styles.source}>{c.source_name}</span>
-              <span style={styles.time}>{timeAgo(c.detected_at)}</span>
-              <span style={styles.changeLabel}>EDITED</span>
-              <ProofBadge txid={c.change_txid} />
-            </div>
-            <div style={styles.title}>{c.new_title}</div>
-            {c.new_description && (
-              <p style={styles.desc}>{c.new_description.slice(0, 200)}</p>
-            )}
-            {c.old_title !== c.new_title && (
-              <DiffView oldText={c.old_title} newText={c.new_title} label="Title change" />
-            )}
-            {c.old_title === c.new_title && (
-              <div style={styles.descChanged}>Description changed</div>
-            )}
+    <div style={{ animation: 'ha-enter .36s cubic-bezier(.2,.7,.2,1)' }}>
+      <SectionHeader
+        kicker="THE EDIT LEDGER"
+        title="Caught red-handed"
+        sub="Every silent edit to a tracked headline, flagged the moment it happens and sealed on-chain as public evidence."
+        right={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: "600 10px 'JetBrains Mono',monospace", color: 'var(--text2)', textTransform: 'uppercase' }}>
+            <LiveDot />Scanning {sourceNames.length} sources
+          </span>
+        }
+      />
+
+      <SourceFilter names={sourceNames} selected={source} onChange={onSource} />
+
+      {loading && filtered.length === 0 ? (
+        <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '48px 0', font: "400 14px 'Archivo'" }}>Scanning the wire…</p>
+      ) : filtered.length === 0 ? (
+        <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '48px 0', font: "400 14px 'Archivo'" }}>No edits caught yet. The record is clean.</p>
+      ) : (
+        <>
+          <div>
+            {pageItems.map((c, i) => {
+              const { before, after } = computeDiffTokens(c.old_title, c.new_title)
+              const verified = !!c.change_txid
+              const hot = current === 1 && i === 0
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => onOpen(c.id)}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface2)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                  style={{ borderTop: '1px solid var(--border)', padding: '22px 4px', cursor: 'pointer', transition: 'background .15s' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+                    <span style={{ font: "700 11px 'JetBrains Mono',monospace", color: 'var(--accent)' }}>#{c.id}</span>
+                    <span style={{ font: "700 11px 'Archivo'", textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--text)' }}>{c.source_name}</span>
+                    <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--muted)' }} />
+                    <span style={{ font: "400 12px 'Archivo'", color: 'var(--text2)' }}>{timeAgo(c.detected_at)}</span>
+                    {hot && <span style={{ font: "800 8.5px 'Archivo'", letterSpacing: '1.2px', color: 'var(--accent)' }}>● LATEST</span>}
+                    <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, font: "800 10px 'Archivo'", letterSpacing: '1.3px', color: 'var(--edit)', border: '1.5px solid var(--edit)', borderRadius: 2, padding: '3px 9px' }}>
+                      <IconX size={9} />EDITED
+                    </span>
+                  </div>
+
+                  <div style={{ font: "800 8px 'Archivo'", letterSpacing: '2px', color: 'var(--editText)', marginBottom: 8 }}>THEY PUBLISHED</div>
+                  <div style={{ marginBottom: 16 }}>
+                    <BeforeHeadline tokens={before} hot={hot} fontSize={17} />
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <IconArrowDown size={12} color="var(--ok)" />
+                    <span style={{ font: "800 8px 'Archivo'", letterSpacing: '2px', color: 'var(--ok)' }}>NOW IT READS</span>
+                  </div>
+                  <AfterHeadline tokens={after} fontSize={21} />
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 15, flexWrap: 'wrap' }}>
+                    {verified ? (
+                      <>
+                        <SealCheck size={24} />
+                        <span style={{ font: "800 9.5px 'Archivo'", letterSpacing: '1.3px', color: 'var(--ok)' }}>VERIFIED ON-CHAIN</span>
+                        <span style={{ font: "400 11px 'JetBrains Mono',monospace", color: 'var(--text2)' }}>tx {truncHash(c.change_txid)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Spinner size={22} />
+                        <span style={{ font: "800 9.5px 'Archivo'", letterSpacing: '1.3px', color: 'var(--warn)' }}>AWAITING ANCHOR</span>
+                        <span style={{ font: "400 11px 'JetBrains Mono',monospace", color: 'var(--text2)' }}>in mempool</span>
+                      </>
+                    )}
+                    <span style={{ flex: 1 }} />
+                    <span style={{ font: "700 11px 'Archivo'", color: 'var(--accent)' }}>Open record →</span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        </a>
-      ))}
-      <div style={styles.pagination}>
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
-          style={styles.pageBtn}
-        >
-          Previous
-        </button>
-        <span style={styles.pageNum}>Page {page}</span>
-        <button
-          onClick={() => setPage((p) => p + 1)}
-          disabled={changes.length < 20}
-          style={styles.pageBtn}
-        >
-          Next
-        </button>
-      </div>
+          <Pager page={current} pages={pages} onPrev={() => onPage(Math.max(1, current - 1))} onNext={() => onPage(Math.min(pages, current + 1))} />
+        </>
+      )}
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  cardLink: {
-    display: 'block',
-    textDecoration: 'none',
-    color: 'inherit',
-    marginBottom: '0.75rem',
-  },
-  card: {
-    background: '#111',
-    border: '1px solid #222',
-    borderRadius: '8px',
-    padding: '1rem',
-    transition: 'border-color 0.15s',
-  },
-  meta: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    marginBottom: '0.75rem',
-    flexWrap: 'wrap',
-  },
-  source: {
-    background: '#1a1a2e',
-    color: '#4a9eff',
-    padding: '2px 8px',
-    borderRadius: '4px',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-  },
-  time: {
-    color: '#666',
-    fontSize: '0.8rem',
-  },
-  changeLabel: {
-    background: '#2d1215',
-    color: '#f87171',
-    padding: '2px 8px',
-    borderRadius: '4px',
-    fontSize: '0.7rem',
-    fontWeight: 700,
-    letterSpacing: '0.05em',
-  },
-  title: {
-    color: '#e0e0e0',
-    fontSize: '1.05rem',
-    fontWeight: 600,
-    lineHeight: 1.4,
-    marginBottom: '0.25rem',
-  },
-  desc: {
-    color: '#aaa',
-    fontSize: '0.85rem',
-    lineHeight: 1.5,
-    marginBottom: '0.5rem',
-  },
-  descChanged: {
-    color: '#f0a500',
-    fontSize: '0.8rem',
-    fontFamily: "'JetBrains Mono', monospace",
-    marginTop: '0.25rem',
-  },
-  pagination: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: '1rem',
-    padding: '1rem 0',
-  },
-  pageBtn: {
-    padding: '0.4rem 1rem',
-    background: '#1a1a1a',
-    border: '1px solid #333',
-    borderRadius: '4px',
-    color: '#aaa',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-  },
-  pageNum: {
-    color: '#666',
-    fontSize: '0.85rem',
-  },
 }
