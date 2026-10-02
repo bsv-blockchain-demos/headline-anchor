@@ -93,4 +93,4 @@ The main implementation is in [server/crawler.ts](server/crawler.ts), [server/de
 
 ## Licence
 
-See the [MIT licence](LICENSE).
+**MIT licence.** See [LICENSE](LICENSE) for the full terms.
