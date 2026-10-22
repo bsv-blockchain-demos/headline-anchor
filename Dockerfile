@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # --- Build stage ---
-FROM node:22-alpine AS build
+FROM node:22.23.4-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 # Auth for the private @bsv-blockchain-demos scope comes from a BuildKit secret
@@ -15,7 +15,7 @@ COPY . .
 RUN npm run build
 
 # --- Runtime stage ---
-FROM node:22-alpine
+FROM node:22.23.4-alpine
 WORKDIR /app
 COPY --from=build /app/package.json /app/package-lock.json ./
 # float-balance-route is a production dependency, so this install needs auth too.
